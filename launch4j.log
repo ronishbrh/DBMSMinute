@@ -1,0 +1,21 @@
+
+
+Version:	3.50
+CmdLine:	C:\Users\Nitro\Documents\NetBeansProjects\DBMSMinute\DBMSMinute.exe --l4j-debug
+JNI:		No
+WOW64:		Yes
+Working dir:	C:\Users\Nitro\Documents\NetBeansProjects\DBMSMinute\.
+Requires JDK:	No
+Requires 64-Bit: No
+Java min ver:	
+Java max ver:	
+Substitute:	JAVA_HOME = C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot\
+JRE paths:	C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot\
+Check launcher:	C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot\bin\javaw.exe (OK)
+Version string: 1.017.000_013 / 64-Bit (OK)
+Main class:	com.mycompany.dbmsminute.DBMSMinute
+Info:		Classpath not defined.
+Launcher:	C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot\bin\javaw.exe
+Launcher args:	-classpath "C:\Users\Nitro\Documents\NetBeansProjects\DBMSMinute\DBMSMinute.exe" com.mycompany.dbmsminute.DBMSMinute
+Args length:	116/32768 chars
+Exit code:	0

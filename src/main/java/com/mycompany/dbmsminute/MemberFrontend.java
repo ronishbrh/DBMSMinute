@@ -4,20 +4,241 @@
  */
 package com.mycompany.dbmsminute;
 
+import com.google.protobuf.TextFormat.ParseException;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.JOptionPane;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+import javax.swing.table.DefaultTableModel;
 
 /**
  *
  * @author Nitro
  */
 public class MemberFrontend extends javax.swing.JFrame {
-
+    private String committeeID;
     /**
      * Creates new form MemberFrontend
+     * @param committeeID
      */
-    public MemberFrontend() {
+    public MemberFrontend(String committeeID) {
+        this.committeeID= committeeID;
         initComponents();
+        committeeIDLabel.setText(committeeID);
+        showLatestMemberID();
+        loadMembersTable();
+        searchListeners();
     }
+
+    private void showLatestMemberID() {
+        String getMemberIDquery = "SELECT member_ID FROM member ORDER BY member_ID DESC LIMIT 1";
+
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(getMemberIDquery);
+             ResultSet MemberIDrs = pstmt.executeQuery()) {
+
+            if (MemberIDrs.next()) {
+                int memberID = MemberIDrs.getInt("member_ID"); 
+                memberID++;
+                memberIDLabel.setText(String.valueOf(memberID)); 
+            } else {
+                memberIDLabel.setText("1"); 
+            }
+
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Database Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    private void loadMembersTable() {
+        int committeeID = -1;
+        try {
+            committeeID = Integer.parseInt(committeeIDLabel.getText().trim());
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(null, "Committee ID Error Occurred! Try Again Later.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // SQL query to fetch members from the selected committee
+        String memberTableFetchSQL = "SELECT m.member_ID, m.name, m.role, m.address, m.email, m.phone_no, m.date_of_join " +
+                      "FROM member m " +
+                      "JOIN belongs_to b ON m.member_ID = b.member_ID " +
+                      "WHERE b.committee_ID = ?";
+
+        try (Connection conn = DBUtil.getConnection();
+         PreparedStatement pstmt = conn.prepareStatement(memberTableFetchSQL)) {
+
+        pstmt.setInt(1, committeeID); 
+
+        try (ResultSet rs = pstmt.executeQuery()) {
+            DefaultTableModel model = (DefaultTableModel) memberTable.getModel();
+            model.setRowCount(0); // Clear existing rows
+
+            while (rs.next()) {
+               
+                int memberID = rs.getInt("member_ID");
+                String name = rs.getString("name");
+                String role = rs.getString("role");
+                String address = rs.getString("address");
+                String email = rs.getString("email");
+                String phoneNo = rs.getString("phone_no");
+                java.sql.Date dateJoined = rs.getDate("date_of_join");
+
+                // Add row to table model
+                model.addRow(new Object[]{memberID, name, role, address, email, phoneNo, dateJoined});
+            }
+        }
+
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Database Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+        
+        
+        //-------------------------------------------------------------------------------------------------------------
+        
+        memberTable.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+        @Override
+        public void valueChanged(ListSelectionEvent event) {
+            if (!event.getValueIsAdjusting()) {
+                int selectedRow = memberTable.getSelectedRow();
+
+                if (selectedRow != -1) { 
+                    // Safely retrieve values from the table, handling null values
+                    Object objMemberId = memberTable.getValueAt(selectedRow, 0);
+                    Object objName = memberTable.getValueAt(selectedRow, 1);
+                    Object objRole = memberTable.getValueAt(selectedRow, 2);
+                    Object objAddress = memberTable.getValueAt(selectedRow, 3);
+                    Object objEmail = memberTable.getValueAt(selectedRow, 4);
+                    Object objPhoneNumber = memberTable.getValueAt(selectedRow, 5);
+                    Object objJoinedDateStr = memberTable.getValueAt(selectedRow, 6);
+
+                    String memberID = (objMemberId != null) ? objMemberId.toString() : "";
+                    String name = (objName != null) ? objName.toString() : "";
+                    String role = (objRole != null) ? objRole.toString() : "";
+                    String address = (objAddress != null) ? objAddress.toString() : "";
+                    String email = (objEmail != null) ? objEmail.toString() : "";
+                    String phoneNumber = (objPhoneNumber != null) ? objPhoneNumber.toString() : "";
+                    String joinedDateStr = (objJoinedDateStr != null) ? objJoinedDateStr.toString() : "";
+
+                    memberIDLabel.setText(String.valueOf(memberID));
+                    nameTextField.setText(name);
+                    roleComboBox.setSelectedItem(role);
+                    addressTextField.setText(address);
+                    emailTextField.setText(email);
+                    phoneNumberTextField.setText(phoneNumber);
+
+                    // Convert string to Date and set in JDateChooser
+                    if (!joinedDateStr.isEmpty()) { 
+                        try {
+                            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+                            Date joinedDate = dateFormat.parse(joinedDateStr);
+                            joinedDateChooser.setDate(joinedDate);
+                        } catch (java.text.ParseException ex) {
+                            Logger.getLogger(MemberFrontend.class.getName()).log(Level.SEVERE, null, ex);
+                            joinedDateChooser.setDate(null); // Ensure it clears in case of parsing error
+                        }
+                    } else {
+                        joinedDateChooser.setDate(null); // clear the date if no joinedDate is available
+                    }
+                }   
+            }
+        }
+    });
+
+    }
+    
+    private void searchMember() {
+        String searchText = memberSearchTextField.getText().trim();
+        String committeeID = committeeIDLabel.getText().trim(); 
+
+        if (searchText.isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Please enter a search term.", "Warning", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+
+        String searchSQL = "SELECT m.* FROM member m " +
+                           "JOIN belongs_to b ON m.member_ID = b.member_ID " +
+                           "WHERE b.committee_ID = ? " + 
+                           "AND (m.name LIKE ? OR m.member_ID LIKE ? OR m.role LIKE ? OR m.address LIKE ? OR m.email LIKE ? OR m.phone_no LIKE ?)";
+
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(searchSQL)) {
+
+            String searchPattern = "%" + searchText + "%"; 
+
+            pstmt.setString(1, committeeID); 
+            pstmt.setString(2, searchPattern);
+            pstmt.setString(3, searchPattern);
+            pstmt.setString(4, searchPattern);
+            pstmt.setString(5, searchPattern);
+            pstmt.setString(6, searchPattern);
+            pstmt.setString(7, searchPattern);
+
+            ResultSet rs = pstmt.executeQuery();
+
+            DefaultTableModel model = (DefaultTableModel) memberTable.getModel();
+            model.setRowCount(0); 
+
+            while (rs.next()) {
+                Object[] row = {
+                    rs.getInt("member_ID"),
+                    rs.getString("name"),
+                    rs.getString("role"),
+                    rs.getString("address"),
+                    rs.getString("email"),
+                    rs.getString("phone_no"),
+                    rs.getDate("date_of_join")
+                };
+                model.addRow(row);
+            }
+
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Database Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    
+    private void searchListeners() {
+        memberSearchTextField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                searchMember();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                loadMembersTable();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                searchMember();
+            }
+        });
+        
+        memberSearchTextField.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                memberTable.clearSelection(); // Deselects any selected row
+                memberTable.getColumnModel().getSelectionModel().clearSelection();
+            }
+        });
+
+    }
+
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -31,28 +252,28 @@ public class MemberFrontend extends javax.swing.JFrame {
         jPanel1 = new javax.swing.JPanel();
         jLabel1 = new javax.swing.JLabel();
         jLabel2 = new javax.swing.JLabel();
-        jLabel3 = new javax.swing.JLabel();
+        committeeIDLabel = new javax.swing.JLabel();
         jLabel4 = new javax.swing.JLabel();
-        jTextField1 = new javax.swing.JTextField();
+        nameTextField = new javax.swing.JTextField();
         jLabel5 = new javax.swing.JLabel();
-        jComboBox1 = new javax.swing.JComboBox<>();
+        roleComboBox = new javax.swing.JComboBox<>();
         jLabel6 = new javax.swing.JLabel();
-        jTextField2 = new javax.swing.JTextField();
+        addressTextField = new javax.swing.JTextField();
         jLabel7 = new javax.swing.JLabel();
-        jTextField3 = new javax.swing.JTextField();
+        phoneNumberTextField = new javax.swing.JTextField();
         jLabel8 = new javax.swing.JLabel();
-        jTextField4 = new javax.swing.JTextField();
+        emailTextField = new javax.swing.JTextField();
         jLabel9 = new javax.swing.JLabel();
-        jDateChooser1 = new com.toedter.calendar.JDateChooser();
+        joinedDateChooser = new com.toedter.calendar.JDateChooser();
         jLabel10 = new javax.swing.JLabel();
-        jTextField5 = new javax.swing.JTextField();
         jScrollPane1 = new javax.swing.JScrollPane();
-        jTable1 = new javax.swing.JTable();
-        jTextField6 = new javax.swing.JTextField();
-        jButton1 = new javax.swing.JButton();
-        jButton2 = new javax.swing.JButton();
-        jButton3 = new javax.swing.JButton();
-        jButton4 = new javax.swing.JButton();
+        memberTable = new javax.swing.JTable();
+        memberSearchTextField = new javax.swing.JTextField();
+        searchMemberButton = new javax.swing.JButton();
+        addMemberButton = new javax.swing.JButton();
+        updateMemberButton = new javax.swing.JButton();
+        deleteMemberButton = new javax.swing.JButton();
+        memberIDLabel = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setResizable(false);
@@ -65,7 +286,7 @@ public class MemberFrontend extends javax.swing.JFrame {
 
         jLabel2.setText("Members for Commitee ID:");
 
-        jLabel3.setBorder(new javax.swing.border.LineBorder(new java.awt.Color(0, 0, 0), 1, true));
+        committeeIDLabel.setBorder(new javax.swing.border.LineBorder(new java.awt.Color(0, 0, 0), 1, true));
 
         jLabel4.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
         jLabel4.setText("Name");
@@ -73,10 +294,10 @@ public class MemberFrontend extends javax.swing.JFrame {
         jLabel5.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
         jLabel5.setText("Role");
 
-        jComboBox1.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Chairperson", "Vice-Chairperson", "Secretary", "Treasurer", "Advisor", "General Member", "Volunteer", "+Add Role" }));
-        jComboBox1.addActionListener(new java.awt.event.ActionListener() {
+        roleComboBox.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Chairperson", "Vice-Chairperson", "Secretary", "Treasurer", "Advisor", "General Member", "Volunteer", "+Add Role" }));
+        roleComboBox.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jComboBox1ActionPerformed(evt);
+                roleComboBoxActionPerformed(evt);
             }
         });
 
@@ -86,9 +307,9 @@ public class MemberFrontend extends javax.swing.JFrame {
         jLabel7.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
         jLabel7.setText("Email Address");
 
-        jTextField3.addActionListener(new java.awt.event.ActionListener() {
+        phoneNumberTextField.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jTextField3ActionPerformed(evt);
+                phoneNumberTextFieldActionPerformed(evt);
             }
         });
 
@@ -99,9 +320,9 @@ public class MemberFrontend extends javax.swing.JFrame {
         jLabel9.setText("Joined Date");
 
         jLabel10.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
-        jLabel10.setText("Member ID");
+        jLabel10.setText("Member ID:");
 
-        jTable1.setModel(new javax.swing.table.DefaultTableModel(
+        memberTable.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
 
             },
@@ -117,20 +338,35 @@ public class MemberFrontend extends javax.swing.JFrame {
                 return types [columnIndex];
             }
         });
-        jScrollPane1.setViewportView(jTable1);
+        jScrollPane1.setViewportView(memberTable);
 
-        jButton1.setText("Search");
-
-        jButton2.setText("Add");
-        jButton2.addActionListener(new java.awt.event.ActionListener() {
+        searchMemberButton.setText("Search");
+        searchMemberButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton2ActionPerformed(evt);
+                searchMemberButtonActionPerformed(evt);
             }
         });
 
-        jButton3.setText("Update");
+        addMemberButton.setText("Add");
+        addMemberButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                addMemberButtonActionPerformed(evt);
+            }
+        });
 
-        jButton4.setText("Delete");
+        updateMemberButton.setText("Update");
+        updateMemberButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                updateMemberButtonActionPerformed(evt);
+            }
+        });
+
+        deleteMemberButton.setText("Delete");
+        deleteMemberButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                deleteMemberButtonActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
@@ -141,47 +377,46 @@ public class MemberFrontend extends javax.swing.JFrame {
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane1)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jLabel10)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jTextField5, javax.swing.GroupLayout.PREFERRED_SIZE, 158, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(0, 0, Short.MAX_VALUE))
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 262, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(jLabel2)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 98, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(41, 41, 41))
-                    .addGroup(jPanel1Layout.createSequentialGroup()
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                .addComponent(jTextField1, javax.swing.GroupLayout.DEFAULT_SIZE, 243, Short.MAX_VALUE)
-                                .addComponent(jLabel4)
-                                .addComponent(jLabel5)
-                                .addComponent(jLabel6, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, 206, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 392, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(addressTextField, javax.swing.GroupLayout.PREFERRED_SIZE, 392, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addComponent(jButton2)
+                                .addComponent(addMemberButton)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addComponent(jButton3)
+                                .addComponent(updateMemberButton)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addComponent(jButton4)))
+                                .addComponent(deleteMemberButton))
+                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                                .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
+                                    .addComponent(jLabel10)
+                                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                                    .addComponent(memberIDLabel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                                .addComponent(nameTextField, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, 243, Short.MAX_VALUE)
+                                .addComponent(jLabel4, javax.swing.GroupLayout.Alignment.LEADING)
+                                .addComponent(jLabel5, javax.swing.GroupLayout.Alignment.LEADING)
+                                .addComponent(jLabel6, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(roleComboBox, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 206, javax.swing.GroupLayout.PREFERRED_SIZE)))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 91, Short.MAX_VALUE)
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jTextField4)
-                            .addComponent(jTextField3)
+                            .addComponent(emailTextField)
+                            .addComponent(phoneNumberTextField)
                             .addGroup(jPanel1Layout.createSequentialGroup()
                                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                     .addComponent(jLabel9)
                                     .addComponent(jLabel8)
                                     .addComponent(jLabel7)
-                                    .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, 169, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                    .addComponent(joinedDateChooser, javax.swing.GroupLayout.PREFERRED_SIZE, 169, javax.swing.GroupLayout.PREFERRED_SIZE))
                                 .addGap(0, 0, Short.MAX_VALUE))
                             .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addComponent(jTextField6, javax.swing.GroupLayout.PREFERRED_SIZE, 203, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addComponent(memberSearchTextField, javax.swing.GroupLayout.PREFERRED_SIZE, 203, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 14, Short.MAX_VALUE)
-                                .addComponent(jButton1)))))
+                                .addComponent(searchMemberButton))))
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 262, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(jLabel2)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(committeeIDLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 98, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(41, 41, 41)))
                 .addContainerGap())
         );
         jPanel1Layout.setVerticalGroup(
@@ -190,20 +425,21 @@ public class MemberFrontend extends javax.swing.JFrame {
                 .addGap(7, 7, 7)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 51, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 24, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel2))
+                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                        .addComponent(jLabel2)
+                        .addComponent(committeeIDLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 24, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel10, javax.swing.GroupLayout.PREFERRED_SIZE, 28, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jTextField5, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(22, 22, 22)
+                    .addComponent(memberIDLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 28, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(26, 26, 26)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel4, javax.swing.GroupLayout.PREFERRED_SIZE, 28, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jLabel7, javax.swing.GroupLayout.PREFERRED_SIZE, 28, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jTextField4, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(nameTextField, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(emailTextField, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(26, 26, 26)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel5, javax.swing.GroupLayout.PREFERRED_SIZE, 28, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -211,24 +447,24 @@ public class MemberFrontend extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(roleComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(18, 18, 18)
                         .addComponent(jLabel6, javax.swing.GroupLayout.PREFERRED_SIZE, 28, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jTextField2, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addComponent(addressTextField, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jTextField3, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(phoneNumberTextField, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addComponent(jLabel9, javax.swing.GroupLayout.PREFERRED_SIZE, 28, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, 32, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 19, Short.MAX_VALUE)
+                        .addComponent(joinedDateChooser, javax.swing.GroupLayout.PREFERRED_SIZE, 32, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 21, Short.MAX_VALUE)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jTextField6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jButton1)
-                    .addComponent(jButton2)
-                    .addComponent(jButton3)
-                    .addComponent(jButton4))
+                    .addComponent(memberSearchTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(searchMemberButton)
+                    .addComponent(addMemberButton)
+                    .addComponent(updateMemberButton)
+                    .addComponent(deleteMemberButton))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 182, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap())
@@ -249,29 +485,241 @@ public class MemberFrontend extends javax.swing.JFrame {
         setLocationRelativeTo(null);
     }// </editor-fold>//GEN-END:initComponents
 
-    private void jComboBox1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jComboBox1ActionPerformed
-        String selectedItem = (String) jComboBox1.getSelectedItem();
+    private void roleComboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_roleComboBoxActionPerformed
+        String selectedItem = (String) roleComboBox.getSelectedItem();
         if (selectedItem != null && selectedItem.equals("+Add Role")) {
         String newItem = JOptionPane.showInputDialog(this, "Enter new role:");
        
         if (newItem != null && !newItem.isEmpty()) {
-            jComboBox1.addItem(newItem);
+            roleComboBox.addItem(newItem);
         }
-        jComboBox1.removeItem("+Add Role");
-        jComboBox1.addItem("+Add Role");
+        roleComboBox.removeItem("+Add Role");
+        roleComboBox.addItem("+Add Role");
         
-        jComboBox1.setSelectedItem(newItem);
+        roleComboBox.setSelectedItem(newItem);
     }
-    }//GEN-LAST:event_jComboBox1ActionPerformed
+    }//GEN-LAST:event_roleComboBoxActionPerformed
 
-    private void jTextField3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jTextField3ActionPerformed
+    private void phoneNumberTextFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_phoneNumberTextFieldActionPerformed
         // TODO add your handling code here:
-    }//GEN-LAST:event_jTextField3ActionPerformed
+    }//GEN-LAST:event_phoneNumberTextFieldActionPerformed
 
-    private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_jButton2ActionPerformed
+    private void addMemberButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addMemberButtonActionPerformed
+                                             
+        String insertMemberSQL = "INSERT INTO member (name, role, address, email, phone_no, date_of_join) VALUES (?, ?, ?, ?, ?, ?)";
+        String insertIntoBelongsToSQL = "INSERT INTO belongs_to (committee_id, member_id) VALUES (?,?)";
+        String insertIntoAttendsSQL = "INSERT IGNORE INTO attends (meeting_id, member_id) " +
+                                      "SELECT meeting_id, ? FROM meeting WHERE committee_name = " +
+                                      "(SELECT name FROM committee WHERE committee_id = ?)";
 
+        Connection conn = null;
+
+        try {
+            conn = DBUtil.getConnection();
+            conn.setAutoCommit(false); 
+
+            try (PreparedStatement pstmt = conn.prepareStatement(insertMemberSQL, Statement.RETURN_GENERATED_KEYS);
+                 PreparedStatement pstmt2 = conn.prepareStatement(insertIntoBelongsToSQL);
+                 PreparedStatement pstmt3 = conn.prepareStatement(insertIntoAttendsSQL)) {
+
+                String name = nameTextField.getText();
+                String role = (String) roleComboBox.getSelectedItem(); 
+                String address = addressTextField.getText();
+                String email = emailTextField.getText();
+                String phoneNo = phoneNumberTextField.getText();
+
+                java.util.Date utilDate = joinedDateChooser.getDate();
+                java.sql.Date sqlDate = utilDate != null ? new java.sql.Date(utilDate.getTime()) : null;
+
+                if(name.isEmpty() || email.isEmpty()){
+                    JOptionPane.showMessageDialog(null, "Member's name and email address are required!");
+                    return;
+                }
+
+                //into member
+                pstmt.setString(1, name);
+                pstmt.setString(2, role);
+                pstmt.setString(3, address);
+                pstmt.setString(4, email);
+                pstmt.setString(5, phoneNo);
+                pstmt.setDate(6, sqlDate);
+
+                int rowsInserted = pstmt.executeUpdate();
+
+                if (rowsInserted > 0) {
+                    try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                        if (generatedKeys.next()) {
+                            int generatedMemberID = generatedKeys.getInt(1);
+                            int committeeID = Integer.parseInt(committeeIDLabel.getText().trim());
+
+                            // into belongs_to
+                            pstmt2.setInt(1, committeeID);
+                            pstmt2.setInt(2, generatedMemberID);
+                            pstmt2.executeUpdate();
+
+                            // into attends (avoid duplicate errors)
+                            pstmt3.setInt(1, generatedMemberID);
+                            pstmt3.setInt(2, committeeID);
+                            pstmt3.executeUpdate();
+
+                
+                            conn.commit();
+
+                            JOptionPane.showMessageDialog(null, "Member added successfully and assigned to all meetings!");
+
+                            nameTextField.setText("");
+                            roleComboBox.setSelectedIndex(0);
+                            addressTextField.setText("");
+                            emailTextField.setText("");
+                            phoneNumberTextField.setText("");
+                            joinedDateChooser.setDate(null);
+
+                            showLatestMemberID();
+                            loadMembersTable();
+                        } else {
+                            JOptionPane.showMessageDialog(null, "Failed to retrieve Member ID!", "Error", JOptionPane.ERROR_MESSAGE);
+                            conn.rollback(); // Rollback changes if member_id retrieval fails
+                        }
+                    }
+                } else {
+                    JOptionPane.showMessageDialog(null, "Failed to add member!", "Error", JOptionPane.ERROR_MESSAGE);
+                    conn.rollback(); // Rollback if member insert fails
+                }
+            }
+        } catch (SQLException e) {
+            try {
+                if (conn != null) conn.rollback(); // Rollback on exception
+            } catch (SQLException rollbackEx) {
+                rollbackEx.printStackTrace();
+            }
+            JOptionPane.showMessageDialog(null, "Database Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        } finally {
+            try {
+                if (conn != null) conn.setAutoCommit(true); // Restore auto-commit
+                if (conn != null) conn.close();
+            } catch (SQLException closeEx) {
+                closeEx.printStackTrace();
+            }
+        }
+
+
+
+
+    }//GEN-LAST:event_addMemberButtonActionPerformed
+
+    private void updateMemberButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_updateMemberButtonActionPerformed
+        
+            try {
+            int currentMemberID = Integer.parseInt(memberIDLabel.getText());  
+            String memberName = nameTextField.getText();
+            String role = (String) roleComboBox.getSelectedItem();
+            String address = addressTextField.getText();
+            String email = emailTextField.getText();
+            String phone_no = phoneNumberTextField.getText();
+
+            java.util.Date utilDate = joinedDateChooser.getDate();
+            java.sql.Date sqlDate = (utilDate != null) ? new java.sql.Date(utilDate.getTime()) : null;
+
+            if (memberName.isEmpty() || email.isEmpty()) {
+                JOptionPane.showMessageDialog(null, "Important fields are required for update!");
+                return;
+            }
+
+            String updateMemberDetailsSQL = "UPDATE member SET name=?, role=?, address=?, email=?, phone_no=?, date_of_join=? WHERE member_ID=?";
+
+            try (Connection conn = DBUtil.getConnection(); 
+                 PreparedStatement pstmt = conn.prepareStatement(updateMemberDetailsSQL)) {
+
+                pstmt.setString(1, memberName);
+                pstmt.setString(2, role);
+                pstmt.setString(3, address);
+                pstmt.setString(4, email);
+                pstmt.setString(5, phone_no);
+                pstmt.setDate(6, sqlDate);
+                pstmt.setInt(7, currentMemberID); 
+
+                int rowsUpdated = pstmt.executeUpdate();
+
+                if (rowsUpdated > 0) {
+                    JOptionPane.showMessageDialog(null, "Member (ID: " + currentMemberID + ") details updated successfully!");
+                    showLatestMemberID();
+                    loadMembersTable();
+                } else {
+                    JOptionPane.showMessageDialog(null, "No changes were made.");
+                }
+            }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(null, "Invalid Member ID. Please select a valid Member.");
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Database Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+        
+    }//GEN-LAST:event_updateMemberButtonActionPerformed
+
+    private void deleteMemberButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteMemberButtonActionPerformed
+        try {
+            int currentMemberID = Integer.parseInt(memberIDLabel.getText());
+
+            int confirm = JOptionPane.showConfirmDialog(null, 
+                "Are you sure you want to delete Member ID: " + currentMemberID + "?", 
+                "Confirm Deletion", JOptionPane.YES_NO_OPTION);
+
+            if (confirm == JOptionPane.YES_OPTION) {
+                // Check if member exists
+                String checkMemberSQL = "SELECT COUNT(*) FROM member WHERE member_ID=?";
+                String deleteMemberSQL = "DELETE FROM member WHERE member_ID=?";
+
+                try (Connection conn = DBUtil.getConnection();
+                     PreparedStatement checkStmt = conn.prepareStatement(checkMemberSQL);
+                     PreparedStatement deleteStmt = conn.prepareStatement(deleteMemberSQL)) {
+
+                    checkStmt.setInt(1, currentMemberID);
+                    ResultSet rs = checkStmt.executeQuery();
+
+                    if (rs.next() && rs.getInt(1) > 0) {  // member exists
+                        deleteStmt.setInt(1, currentMemberID);
+                        int rowsDeleted = deleteStmt.executeUpdate();
+
+                        if (rowsDeleted > 0) {
+                            JOptionPane.showMessageDialog(null, "Member (ID: " + currentMemberID + ") deleted!");
+                            nameTextField.setText("");
+                            roleComboBox.setSelectedIndex(0);
+                            addressTextField.setText("");
+                            emailTextField.setText("");
+                            phoneNumberTextField.setText("");
+                            joinedDateChooser.setDate(null);
+
+                            showLatestMemberID();
+                            loadMembersTable();
+                        } else {
+                            JOptionPane.showMessageDialog(null, 
+                                "Deletion failed. Please try again.", 
+                                "Error", JOptionPane.ERROR_MESSAGE);
+                        }
+                    } else {
+                        JOptionPane.showMessageDialog(null, 
+                            "Member ID " + currentMemberID + " does not exist!", 
+                            "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(null, 
+                "Invalid Member ID. Please select a valid Member.", 
+                "Error", JOptionPane.ERROR_MESSAGE);
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, 
+                "Database Error: " + e.getMessage(), 
+                "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }//GEN-LAST:event_deleteMemberButtonActionPerformed
+
+    private void searchMemberButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_searchMemberButtonActionPerformed
+        searchMember();
+    }//GEN-LAST:event_searchMemberButtonActionPerformed
+
+    
+    
     /**
      * @param args the command line arguments
      */
@@ -302,22 +750,20 @@ public class MemberFrontend extends javax.swing.JFrame {
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                new MemberFrontend().setVisible(true);
+                new MemberFrontend("").setVisible(true);
             }
         });
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton jButton1;
-    private javax.swing.JButton jButton2;
-    private javax.swing.JButton jButton3;
-    private javax.swing.JButton jButton4;
-    private javax.swing.JComboBox<String> jComboBox1;
-    private com.toedter.calendar.JDateChooser jDateChooser1;
+    private javax.swing.JButton addMemberButton;
+    private javax.swing.JTextField addressTextField;
+    private javax.swing.JLabel committeeIDLabel;
+    private javax.swing.JButton deleteMemberButton;
+    private javax.swing.JTextField emailTextField;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel10;
     private javax.swing.JLabel jLabel2;
-    private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
     private javax.swing.JLabel jLabel5;
     private javax.swing.JLabel jLabel6;
@@ -326,12 +772,14 @@ public class MemberFrontend extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel9;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JScrollPane jScrollPane1;
-    private javax.swing.JTable jTable1;
-    private javax.swing.JTextField jTextField1;
-    private javax.swing.JTextField jTextField2;
-    private javax.swing.JTextField jTextField3;
-    private javax.swing.JTextField jTextField4;
-    private javax.swing.JTextField jTextField5;
-    private javax.swing.JTextField jTextField6;
+    private com.toedter.calendar.JDateChooser joinedDateChooser;
+    private javax.swing.JLabel memberIDLabel;
+    private javax.swing.JTextField memberSearchTextField;
+    private javax.swing.JTable memberTable;
+    private javax.swing.JTextField nameTextField;
+    private javax.swing.JTextField phoneNumberTextField;
+    private javax.swing.JComboBox<String> roleComboBox;
+    private javax.swing.JButton searchMemberButton;
+    private javax.swing.JButton updateMemberButton;
     // End of variables declaration//GEN-END:variables
 }

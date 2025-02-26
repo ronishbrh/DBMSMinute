@@ -11,6 +11,7 @@ package com.mycompany.dbmsminute;
 public class DBMSMinute {
 
     public static void main(String[] args) {
-        System.out.println("Hello World!");
+        Login initial = new Login();
+        initial.setVisible(true);
     }
 }
