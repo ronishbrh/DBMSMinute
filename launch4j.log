@@ -18,3 +18,25 @@ Launcher:	C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot\bin\javaw.exe
 Launcher args:	-jar "C:\Users\Nitro\Documents\NetBeansProjects\DBMSMinute\DBMSMinute.exe"
 Args length:	74/32768 chars
 Exit code:	0
+
+
+Version:	3.50
+CmdLine:	C:\Users\Nitro\Documents\NetBeansProjects\DBMSMinute\DBMSMinute.exe --l4j-debug
+JNI:		No
+WOW64:		Yes
+Working dir:	C:\Users\Nitro\Documents\NetBeansProjects\DBMSMinute\.
+Requires JDK:	No
+Requires 64-Bit: No
+Java min ver:	1.017.000
+Java max ver:	
+Substitute:	JAVA_HOME = C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot
+Substitute:	PATH = C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot\bin;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\NVIDIA Corporation\NVIDIA NvDLISR;C:\Program Files\Git\cmd;c:\altera\80\quartus\bin;C:\Users\Nitro\AppData\Local\Programs\Python\Python313\Scripts\;C:\Users\Nitro\AppData\Local\Programs\Python\Python313\;C:\Program Files\MySQL\MySQL Shell 8.0\bin\;C:\Users\Nitro\AppData\Local\Microsoft\WindowsApps;C:\Users\Nitro\AppData\Local\Programs\Microsoft VS Code\bin;C:\Program Files\JetBrains\IntelliJ IDEA Community Edition 2024.3.1.1\bin;;C:\intelFPGA\18.1\modelsim_ase\win32aloem;C:\Users\Nitro\AppData\Local\Programs\Ollama;C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot;;C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot\bin
+JRE paths:	C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot;C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot\bin;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\NVIDIA Corporation\NVIDIA NvDLISR;C:\Program Files\Git\cmd;c:\altera\80\quartus\bin;C:\Users\Nitro\AppData\Local\Programs\Python\Python313\Scripts\;C:\Users\Nitro\AppData\Local\Programs\Python\Python313\;C:\Program Files\MySQL\MySQL Shell 8.0\bin\;C:\Users\Nitro\AppData\Local\Microsoft\WindowsApps;C:\Users\Nitro\AppData\Local\Programs\Microsoft VS Code\bin;C:\Program Files\JetBrains\IntelliJ IDEA Community Edition 2024.3.1.1\bin;;C:\intelFPGA\18.1\modelsim_ase\win32aloem;C:\Users\Nitro\AppData\Local\Programs\Ollama;C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot;;C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot\bin
+Check launcher:	C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot\bin\javaw.exe (OK)
+Version string: 1.017.000_013 / 64-Bit (OK)
+Main class:	com.mycompany.dbmsminute.DBMSMinute
+Info:		Classpath not defined.
+Launcher:	C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot\bin\javaw.exe
+Launcher args:	-classpath "C:\Users\Nitro\Documents\NetBeansProjects\DBMSMinute\DBMSMinute.exe" com.mycompany.dbmsminute.DBMSMinute
+Args length:	116/32768 chars
+Exit code:	0

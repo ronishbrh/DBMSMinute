@@ -144,12 +144,13 @@ public class GUIMain extends javax.swing.JFrame {
     
     private void setupMeetingTitleComboBoxListener() {
        meetingTitleComboBox.addActionListener(e -> {
+           Object selectedItem;
            // Get the selected title from the combo box
-           Object selectedItem = meetingTitleComboBox.getSelectedItem();
-           if (selectedItem == null) {
-               JOptionPane.showMessageDialog(this, "No meeting title selected!", "Error", JOptionPane.ERROR_MESSAGE);
-               return; //get out of listener if no item is selected
-           }
+           if (meetingTitleComboBox.getSelectedItem()!=null)
+            selectedItem = meetingTitleComboBox.getSelectedItem();
+           else
+               return;
+           
 
            String selectedTitle = selectedItem.toString();
 
@@ -170,7 +171,7 @@ public class GUIMain extends javax.swing.JFrame {
            }
 
 
-           JOptionPane.showMessageDialog(this, "No matching meeting ID found for the selected title.", "Error", JOptionPane.ERROR_MESSAGE);
+           //JOptionPane.showMessageDialog(this, "No matching meeting ID found for the selected title.", "Error", JOptionPane.ERROR_MESSAGE);
        });
        
       
@@ -178,11 +179,12 @@ public class GUIMain extends javax.swing.JFrame {
     
     private void setupMeetingIDComboBoxListener(){
        meetingIDComboBox.addActionListener(e -> {
-           Object selectedItem = meetingIDComboBox.getSelectedItem();
-           if (selectedItem == null) {
-               JOptionPane.showMessageDialog(this, "No meeting ID selected!", "Error", JOptionPane.ERROR_MESSAGE);
+           Object selectedItem ;
+           if(meetingIDComboBox.getSelectedItem()!=null)
+            selectedItem = meetingIDComboBox.getSelectedItem();
+           else 
                return;
-           }
+           
 
            String selectedID = selectedItem.toString();
 
@@ -198,9 +200,7 @@ public class GUIMain extends javax.swing.JFrame {
 
                if (meetingTitle != null) {
                    meetingTitleComboBox.setSelectedItem(meetingTitle);  
-               } else {
-                   JOptionPane.showMessageDialog(this, "No matching meeting title found.", "Error", JOptionPane.ERROR_MESSAGE);
-               }
+               } 
            } catch (NumberFormatException ex) {
                JOptionPane.showMessageDialog(this, "Invalid meeting ID format.", "Error", JOptionPane.ERROR_MESSAGE);
            }
@@ -2288,7 +2288,7 @@ public class GUIMain extends javax.swing.JFrame {
                         }
 
                         JOptionPane.showMessageDialog(null, "Meeting (ID: " + meetingID + ") inserted successfully with attendees!");
-
+                        loadMeetings();
                
                         meetingTitleTextField.setText("");
                         meetingLocationTextField.setText("");
