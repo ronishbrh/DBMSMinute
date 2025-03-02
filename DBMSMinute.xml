@@ -14,14 +14,11 @@
   <restartOnCrash>false</restartOnCrash>
   <manifest></manifest>
   <icon></icon>
-  <classPath>
-    <mainClass>com.mycompany.dbmsminute.DBMSMinute</mainClass>
-  </classPath>
   <jre>
-    <path>%JAVA_HOME%</path>
+    <path>%JAVA_HOME%;%PATH%</path>
     <requiresJdk>false</requiresJdk>
     <requires64Bit>false</requires64Bit>
-    <minVersion></minVersion>
+    <minVersion>17</minVersion>
     <maxVersion></maxVersion>
   </jre>
 </launch4jConfig>

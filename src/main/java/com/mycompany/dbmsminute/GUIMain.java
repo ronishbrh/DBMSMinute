@@ -11,6 +11,8 @@ import java.awt.Graphics2D;
 import java.awt.Toolkit;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.print.PageFormat;
@@ -68,6 +70,7 @@ public class GUIMain extends javax.swing.JFrame {
 
         loadCommittees(email);
         
+        committeeComboBoxListeners();
         showCommitteeName();
         
         loadMeetingsTable();
@@ -80,6 +83,7 @@ public class GUIMain extends javax.swing.JFrame {
         
         loadMeetings();
         setupMeetingTitleComboBoxListener();
+        setupMeetingIDComboBoxListener();
 
         
         loadMeetingAgendaList();
@@ -103,9 +107,13 @@ public class GUIMain extends javax.swing.JFrame {
         }
     });
 
+
        
         
     }
+    
+    
+
     
     public static GUIMain getInstance(){
         if(instance == null)
@@ -163,6 +171,39 @@ public class GUIMain extends javax.swing.JFrame {
 
 
            JOptionPane.showMessageDialog(this, "No matching meeting ID found for the selected title.", "Error", JOptionPane.ERROR_MESSAGE);
+       });
+       
+      
+   }
+    
+    private void setupMeetingIDComboBoxListener(){
+       meetingIDComboBox.addActionListener(e -> {
+           Object selectedItem = meetingIDComboBox.getSelectedItem();
+           if (selectedItem == null) {
+               JOptionPane.showMessageDialog(this, "No meeting ID selected!", "Error", JOptionPane.ERROR_MESSAGE);
+               return;
+           }
+
+           String selectedID = selectedItem.toString();
+
+           HashMap<Integer, String> meetingsMap = (HashMap<Integer, String>) meetingIDComboBox.getClientProperty("meetingsMap");
+           if (meetingsMap == null) {
+               JOptionPane.showMessageDialog(this, "Meetings map is not available!", "Error", JOptionPane.ERROR_MESSAGE);
+               return;
+           }
+
+           try {
+               int meetingID = Integer.parseInt(selectedID); 
+               String meetingTitle = meetingsMap.get(meetingID);  
+
+               if (meetingTitle != null) {
+                   meetingTitleComboBox.setSelectedItem(meetingTitle);  
+               } else {
+                   JOptionPane.showMessageDialog(this, "No matching meeting title found.", "Error", JOptionPane.ERROR_MESSAGE);
+               }
+           } catch (NumberFormatException ex) {
+               JOptionPane.showMessageDialog(this, "Invalid meeting ID format.", "Error", JOptionPane.ERROR_MESSAGE);
+           }
        });
    }
 
@@ -227,13 +268,13 @@ public class GUIMain extends javax.swing.JFrame {
     private void loadMeetings() {
         String committeeName = committeeNameLabel.getText();
 
-        // Validate committeeName
+    
         if (committeeName == null || committeeName.isEmpty()) {
             JOptionPane.showMessageDialog(null, "Please select a valid committee!", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        // Clear previous items
+
         meetingIDComboBox.removeAllItems();
         meetingTitleComboBox.removeAllItems();
 
@@ -247,7 +288,7 @@ public class GUIMain extends javax.swing.JFrame {
 
             HashMap<Integer, String> meetingsMap = new HashMap<>(); // Store ID-Title mapping
 
-            // Populate combo boxes
+   
             while (rs.next()) {
                 int meetingID = rs.getInt("meeting_id");
                 String meetingTitle = rs.getString("title");
@@ -263,8 +304,8 @@ public class GUIMain extends javax.swing.JFrame {
 
         
             if (meetingIDComboBox.getItemCount() > 0) {
-                meetingIDComboBox.setSelectedIndex(0);  // Select first item to avoid null
-                loadMinuteTable(Integer.parseInt(meetingIDComboBox.getSelectedItem().toString()));  // Load data for first meeting
+                meetingIDComboBox.setSelectedIndex(0);  
+                loadMinuteTable(Integer.parseInt(meetingIDComboBox.getSelectedItem().toString()));  
             } else {
                 JOptionPane.showMessageDialog(null, "No meetings found for this committee.", "Information", JOptionPane.INFORMATION_MESSAGE);
             }
@@ -845,6 +886,11 @@ public class GUIMain extends javax.swing.JFrame {
             @Override
             public void valueChanged(ListSelectionEvent event) {
                 if (!event.getValueIsAdjusting()) {
+                    
+                        showLatestMeetingID();
+                        meetingTitleTextField.setText("");
+                        meetingLocationTextField.setText("");
+                        meetingTypeTextField.setText("");
                     int selectedRow = meetingsTable.getSelectedRow();
 
                     if (selectedRow != -1) { 
@@ -971,6 +1017,19 @@ public class GUIMain extends javax.swing.JFrame {
     
     //========================================EDIT COMMITTEE DETAILS==============================================================
     
+
+    private void committeeComboBoxListeners(){
+        committeeIDComboBox.addActionListener(e -> {
+
+                String selectedCommittee = (String) committeeIDComboBox.getSelectedItem();
+                
+                if (selectedCommittee != null && !selectedCommittee.isEmpty()) {
+                  
+                    loadMeetings();
+                }
+            
+        });
+    }
     private void loadCommitteeDetails(int committeeID){
         
         committeeNameTextField.setText("");
@@ -2064,7 +2123,8 @@ public class GUIMain extends javax.swing.JFrame {
     }//GEN-LAST:event_agendaSearchButtonActionPerformed
 
     private void jButton8ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton8ActionPerformed
-        AttendanceFrontend attendance = new AttendanceFrontend(Integer.parseInt((String) meetingIDComboBox.getSelectedItem()));
+        AttendanceFrontend attendance = new AttendanceFrontend(Integer.parseInt((String) meetingIDComboBox.getSelectedItem()),
+        Integer.parseInt((String) committeeIDComboBox.getSelectedItem()));
         attendance.setVisible(true);
     }//GEN-LAST:event_jButton8ActionPerformed
 

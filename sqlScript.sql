@@ -70,11 +70,23 @@ BEGIN
     INSERT INTO attends (meeting_id, member_id)
     SELECT meeting.meeting_id, NEW.member_id
     FROM meeting
-    WHERE meeting.committee_name = (SELECT committee_name FROM committee WHERE committee_id = NEW.committee_id);
+    WHERE meeting.committee_name = (
+        SELECT committee_name FROM committee WHERE committee_id = NEW.committee_id
+    )
+    AND NOT EXISTS (
+        SELECT 1 FROM attends 
+        WHERE attends.meeting_id = meeting.meeting_id 
+        AND attends.member_id = NEW.member_id
+    );
 END;
 //
 
 DELIMITER ;
+
+
+
+
+
 
 
 CREATE TABLE agenda (

@@ -22,15 +22,17 @@ import javax.swing.JScrollPane;
 public class AttendanceFrontend extends javax.swing.JFrame {
     private int meetingID;
     private int currentMeetingID;
+    private int committeeID;
     /**
      * Creates new form AttendanceFrontend
      * @param meetingID
      */
-    public AttendanceFrontend(int meetingID) {
+    public AttendanceFrontend(int meetingID, int committeeID) {
         this.meetingID = meetingID;
+        this.committeeID = committeeID;
         initComponents();
         
-        loadMeetingMembers(meetingID);
+        loadMeetingMembers(meetingID, committeeID);
         attendanceList.setModel(new DefaultListModel<>());
 
         loadSavedAttendance();
@@ -38,29 +40,35 @@ public class AttendanceFrontend extends javax.swing.JFrame {
     }
 
 
-    private void loadMeetingMembers(int meetingID) {
+    private void loadMeetingMembers(int meetingID, int committeeID) {
         currentMeetingID = meetingID;
-        DefaultListModel<String> memberModel = new DefaultListModel<>();
-        
-        try (Connection conn = DBUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(
-                "SELECT m.member_id, m.name, m.role FROM member m " +
-                "JOIN attends a ON m.member_id = a.member_id " +
-                "WHERE a.meeting_id = ?")) {
+    DefaultListModel<String> memberModel = new DefaultListModel<>();
+    
+    try (Connection conn = DBUtil.getConnection();
+         PreparedStatement pstmt = conn.prepareStatement(
+            "SELECT m.member_id, m.name, m.role " +
+            "FROM member m " +
+            "JOIN attends a ON m.member_id = a.member_id " +
+            "JOIN belongs_to b ON m.member_id = b.member_id " +
+            "WHERE a.meeting_id = ? AND b.committee_id = ?")) {
 
-            pstmt.setInt(1, meetingID);
-            ResultSet rs = pstmt.executeQuery();
+        pstmt.setInt(1, meetingID);
+        pstmt.setInt(2, committeeID); 
 
-            while (rs.next()) {
-                int memberID = rs.getInt("member_id");
-                String memberName = rs.getString("name");
-                String memberRole = rs.getString("role");
-                memberModel.addElement(memberID + " - " + memberName + " (" + memberRole +")");
-            }
-            memberList.setModel(memberModel);
-        } catch (SQLException e) {
-            e.printStackTrace();
+        ResultSet rs = pstmt.executeQuery();
+
+        while (rs.next()) {
+            int memberID = rs.getInt("member_id");
+            String memberName = rs.getString("name");
+            String memberRole = rs.getString("role");
+            memberModel.addElement(memberID + " - " + memberName + " (" + memberRole + ")");
         }
+        memberList.setModel(memberModel);
+    } catch (SQLException e) {
+        e.printStackTrace();
+    } catch (NumberFormatException e) {
+        System.err.println("Invalid committee ID: ");
+    }
     }
     
     private void setupListeners(){
@@ -381,7 +389,7 @@ public class AttendanceFrontend extends javax.swing.JFrame {
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                new AttendanceFrontend(0).setVisible(true);
+                new AttendanceFrontend(0,0).setVisible(true);
             }
         });
     }
