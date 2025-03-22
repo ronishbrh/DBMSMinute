@@ -28,15 +28,15 @@ import javax.swing.table.DefaultTableModel;
  * @author Nitro
  */
 public class MemberFrontend extends javax.swing.JFrame {
-    private String committeeID;
+    private String committeeName;
     /**
      * Creates new form MemberFrontend
-     * @param committeeID
+     * @param committeeName
      */
-    public MemberFrontend(String committeeID) {
-        this.committeeID= committeeID;
+    public MemberFrontend(String committeeName) {
+        this.committeeName= committeeName;
         initComponents();
-        committeeIDLabel.setText(committeeID);
+        committeeNameLabel.setText(committeeName);
         showLatestMemberID();
         loadMembersTable();
         searchListeners();
@@ -63,47 +63,59 @@ public class MemberFrontend extends javax.swing.JFrame {
     }
     
     private void loadMembersTable() {
-        int committeeID = -1;
-        try {
-            committeeID = Integer.parseInt(committeeIDLabel.getText().trim());
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(null, "Committee ID Error Occurred! Try Again Later.", "Error", JOptionPane.ERROR_MESSAGE);
+       
+
+        if (committeeName.isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Committee name cannot be empty!", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        // SQL query to fetch members from the selected committee
+        String getCommitteeIDSQL = "SELECT committee_ID FROM committee WHERE name = ?";
         String memberTableFetchSQL = "SELECT m.member_ID, m.name, m.role, m.address, m.email, m.phone_no, m.date_of_join " +
-                      "FROM member m " +
-                      "JOIN belongs_to b ON m.member_ID = b.member_ID " +
-                      "WHERE b.committee_ID = ?";
+                          "FROM member m " +
+                          "JOIN belongs_to b ON m.member_ID = b.member_ID " +
+                          "WHERE b.committee_ID = ?";
 
         try (Connection conn = DBUtil.getConnection();
-         PreparedStatement pstmt = conn.prepareStatement(memberTableFetchSQL)) {
+             PreparedStatement getCommitteeIDStmt = conn.prepareStatement(getCommitteeIDSQL);
+             PreparedStatement memberStmt = conn.prepareStatement(memberTableFetchSQL)) {
 
-        pstmt.setInt(1, committeeID); 
+            // Get committee ID from committee name
+            getCommitteeIDStmt.setString(1, committeeName);
+            ResultSet rs1 = getCommitteeIDStmt.executeQuery();
 
-        try (ResultSet rs = pstmt.executeQuery()) {
+            if (!rs1.next()) {
+                JOptionPane.showMessageDialog(null, "Invalid committee name!", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            int committeeID = rs1.getInt("committee_ID");
+
+            // Fetch members based on committee ID
+            memberStmt.setInt(1, committeeID);
+            ResultSet rs2 = memberStmt.executeQuery();
+
             DefaultTableModel model = (DefaultTableModel) memberTable.getModel();
             model.setRowCount(0); // Clear existing rows
 
-            while (rs.next()) {
-               
-                int memberID = rs.getInt("member_ID");
-                String name = rs.getString("name");
-                String role = rs.getString("role");
-                String address = rs.getString("address");
-                String email = rs.getString("email");
-                String phoneNo = rs.getString("phone_no");
-                java.sql.Date dateJoined = rs.getDate("date_of_join");
+            while (rs2.next()) {
+                int memberID = rs2.getInt("member_ID");
+                String name = rs2.getString("name");
+                String role = rs2.getString("role");
+                String address = rs2.getString("address");
+                String email = rs2.getString("email");
+                String phoneNo = rs2.getString("phone_no");
+                java.sql.Date dateJoined = rs2.getDate("date_of_join");
 
                 // Add row to table model
                 model.addRow(new Object[]{memberID, name, role, address, email, phoneNo, dateJoined});
             }
-        }
 
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(null, "Database Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
+ 
+
         
         
         //-------------------------------------------------------------------------------------------------------------
@@ -161,7 +173,7 @@ public class MemberFrontend extends javax.swing.JFrame {
     
     private void searchMember() {
         String searchText = memberSearchTextField.getText().trim();
-        String committeeID = committeeIDLabel.getText().trim(); 
+        String committeeID = committeeNameLabel.getText().trim(); 
 
         if (searchText.isEmpty()) {
             JOptionPane.showMessageDialog(null, "Please enter a search term.", "Warning", JOptionPane.WARNING_MESSAGE);
@@ -252,7 +264,7 @@ public class MemberFrontend extends javax.swing.JFrame {
         jPanel1 = new javax.swing.JPanel();
         jLabel1 = new javax.swing.JLabel();
         jLabel2 = new javax.swing.JLabel();
-        committeeIDLabel = new javax.swing.JLabel();
+        committeeNameLabel = new javax.swing.JLabel();
         jLabel4 = new javax.swing.JLabel();
         nameTextField = new javax.swing.JTextField();
         jLabel5 = new javax.swing.JLabel();
@@ -286,7 +298,7 @@ public class MemberFrontend extends javax.swing.JFrame {
 
         jLabel2.setText("Members for Commitee ID:");
 
-        committeeIDLabel.setBorder(new javax.swing.border.LineBorder(new java.awt.Color(0, 0, 0), 1, true));
+        committeeNameLabel.setBorder(new javax.swing.border.LineBorder(new java.awt.Color(0, 0, 0), 1, true));
 
         jLabel4.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
         jLabel4.setText("Name");
@@ -415,7 +427,7 @@ public class MemberFrontend extends javax.swing.JFrame {
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(jLabel2)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(committeeIDLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 98, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(committeeNameLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 98, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(41, 41, 41)))
                 .addContainerGap())
         );
@@ -427,7 +439,7 @@ public class MemberFrontend extends javax.swing.JFrame {
                     .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 51, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(jLabel2)
-                        .addComponent(committeeIDLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 24, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addComponent(committeeNameLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 24, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel10, javax.swing.GroupLayout.PREFERRED_SIZE, 28, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -505,12 +517,12 @@ public class MemberFrontend extends javax.swing.JFrame {
     }//GEN-LAST:event_phoneNumberTextFieldActionPerformed
 
     private void addMemberButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addMemberButtonActionPerformed
-                                             
+                                                                                    
+        String getCommitteeIDSQL = "SELECT committee_ID FROM committee WHERE name = ?";
         String insertMemberSQL = "INSERT INTO member (name, role, address, email, phone_no, date_of_join) VALUES (?, ?, ?, ?, ?, ?)";
         String insertIntoBelongsToSQL = "INSERT INTO belongs_to (committee_id, member_id) VALUES (?,?)";
         String insertIntoAttendsSQL = "INSERT IGNORE INTO attends (meeting_id, member_id) " +
-                                      "SELECT meeting_id, ? FROM meeting WHERE committee_name = " +
-                                      "(SELECT name FROM committee WHERE committee_id = ?)";
+                                      "SELECT meeting_id, ? FROM meeting WHERE committee_name = ?";
 
         Connection conn = null;
 
@@ -518,25 +530,38 @@ public class MemberFrontend extends javax.swing.JFrame {
             conn = DBUtil.getConnection();
             conn.setAutoCommit(false); 
 
-            try (PreparedStatement pstmt = conn.prepareStatement(insertMemberSQL, Statement.RETURN_GENERATED_KEYS);
-                 PreparedStatement pstmt2 = conn.prepareStatement(insertIntoBelongsToSQL);
-                 PreparedStatement pstmt3 = conn.prepareStatement(insertIntoAttendsSQL)) {
+            String name = nameTextField.getText();
+            String role = (String) roleComboBox.getSelectedItem(); 
+            String address = addressTextField.getText();
+            String email = emailTextField.getText();
+            String phoneNo = phoneNumberTextField.getText();
 
-                String name = nameTextField.getText();
-                String role = (String) roleComboBox.getSelectedItem(); 
-                String address = addressTextField.getText();
-                String email = emailTextField.getText();
-                String phoneNo = phoneNumberTextField.getText();
 
-                java.util.Date utilDate = joinedDateChooser.getDate();
-                java.sql.Date sqlDate = utilDate != null ? new java.sql.Date(utilDate.getTime()) : null;
+            java.util.Date utilDate = joinedDateChooser.getDate();
+            java.sql.Date sqlDate = utilDate != null ? new java.sql.Date(utilDate.getTime()) : null;
 
-                if(name.isEmpty() || email.isEmpty()){
-                    JOptionPane.showMessageDialog(null, "Member's name and email address are required!");
-                    return;
+            if (name.isEmpty() || email.isEmpty() || committeeName.isEmpty()) {
+                JOptionPane.showMessageDialog(null, "Member's name, email, and committee name are required!");
+                return;
+            }
+
+            int committeeID = -1;
+
+            // Fetch committee_ID using committeeName
+            try (PreparedStatement stmt = conn.prepareStatement(getCommitteeIDSQL)) {
+                stmt.setString(1, committeeName);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        committeeID = rs.getInt("committee_ID");
+                    } else {
+                        JOptionPane.showMessageDialog(null, "Invalid committee name!", "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
                 }
+            }
 
-                //into member
+            // Insert into member table
+            try (PreparedStatement pstmt = conn.prepareStatement(insertMemberSQL, Statement.RETURN_GENERATED_KEYS)) {
                 pstmt.setString(1, name);
                 pstmt.setString(2, role);
                 pstmt.setString(3, address);
@@ -550,19 +575,21 @@ public class MemberFrontend extends javax.swing.JFrame {
                     try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
                         if (generatedKeys.next()) {
                             int generatedMemberID = generatedKeys.getInt(1);
-                            int committeeID = Integer.parseInt(committeeIDLabel.getText().trim());
 
-                            // into belongs_to
-                            pstmt2.setInt(1, committeeID);
-                            pstmt2.setInt(2, generatedMemberID);
-                            pstmt2.executeUpdate();
+                            // Insert into belongs_to
+                            try (PreparedStatement pstmt2 = conn.prepareStatement(insertIntoBelongsToSQL)) {
+                                pstmt2.setInt(1, committeeID);
+                                pstmt2.setInt(2, generatedMemberID);
+                                pstmt2.executeUpdate();
+                            }
 
-                            // into attends (avoid duplicate errors)
-                            pstmt3.setInt(1, generatedMemberID);
-                            pstmt3.setInt(2, committeeID);
-                            pstmt3.executeUpdate();
+                            // Insert into attends
+                            try (PreparedStatement pstmt3 = conn.prepareStatement(insertIntoAttendsSQL)) {
+                                pstmt3.setInt(1, generatedMemberID);
+                                pstmt3.setString(2, committeeName);
+                                pstmt3.executeUpdate();
+                            }
 
-                
                             conn.commit();
 
                             JOptionPane.showMessageDialog(null, "Member added successfully and assigned to all meetings!");
@@ -578,24 +605,24 @@ public class MemberFrontend extends javax.swing.JFrame {
                             loadMembersTable();
                         } else {
                             JOptionPane.showMessageDialog(null, "Failed to retrieve Member ID!", "Error", JOptionPane.ERROR_MESSAGE);
-                            conn.rollback(); // Rollback changes if member_id retrieval fails
+                            conn.rollback();
                         }
                     }
                 } else {
                     JOptionPane.showMessageDialog(null, "Failed to add member!", "Error", JOptionPane.ERROR_MESSAGE);
-                    conn.rollback(); // Rollback if member insert fails
+                    conn.rollback();
                 }
             }
         } catch (SQLException e) {
             try {
-                if (conn != null) conn.rollback(); // Rollback on exception
+                if (conn != null) conn.rollback();
             } catch (SQLException rollbackEx) {
                 rollbackEx.printStackTrace();
             }
             JOptionPane.showMessageDialog(null, "Database Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         } finally {
             try {
-                if (conn != null) conn.setAutoCommit(true); // Restore auto-commit
+                if (conn != null) conn.setAutoCommit(true);
                 if (conn != null) conn.close();
             } catch (SQLException closeEx) {
                 closeEx.printStackTrace();
@@ -758,7 +785,7 @@ public class MemberFrontend extends javax.swing.JFrame {
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton addMemberButton;
     private javax.swing.JTextField addressTextField;
-    private javax.swing.JLabel committeeIDLabel;
+    private javax.swing.JLabel committeeNameLabel;
     private javax.swing.JButton deleteMemberButton;
     private javax.swing.JTextField emailTextField;
     private javax.swing.JLabel jLabel1;

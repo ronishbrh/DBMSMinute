@@ -96,7 +96,7 @@
                           <EmptySpace max="32767" attributes="0"/>
                           <Component id="jLabel2" min="-2" max="-2" attributes="0"/>
                           <EmptySpace max="-2" attributes="0"/>
-                          <Component id="committeeIDLabel" min="-2" pref="98" max="-2" attributes="0"/>
+                          <Component id="committeeNameLabel" min="-2" pref="98" max="-2" attributes="0"/>
                           <EmptySpace min="-2" pref="41" max="-2" attributes="0"/>
                       </Group>
                   </Group>
@@ -112,7 +112,7 @@
                       <Component id="jLabel1" min="-2" pref="51" max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="3" attributes="0">
                           <Component id="jLabel2" alignment="3" min="-2" max="-2" attributes="0"/>
-                          <Component id="committeeIDLabel" alignment="3" min="-2" pref="24" max="-2" attributes="0"/>
+                          <Component id="committeeNameLabel" alignment="3" min="-2" pref="24" max="-2" attributes="0"/>
                       </Group>
                   </Group>
                   <EmptySpace max="-2" attributes="0"/>
@@ -184,7 +184,7 @@
             <Property name="text" type="java.lang.String" value="Members for Commitee ID:"/>
           </Properties>
         </Component>
-        <Component class="javax.swing.JLabel" name="committeeIDLabel">
+        <Component class="javax.swing.JLabel" name="committeeNameLabel">
           <Properties>
             <Property name="border" type="javax.swing.border.Border" editor="org.netbeans.modules.form.editors2.BorderEditor">
               <Border info="org.netbeans.modules.form.compat2.border.LineBorderInfo">

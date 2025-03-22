@@ -100,12 +100,12 @@ public class GUIMain extends javax.swing.JFrame {
        this.setExtendedState(JFrame.MAXIMIZED_BOTH);
        
        this.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
-    this.addWindowListener(new WindowAdapter() {
-        @Override
-        public void windowClosing(WindowEvent e) {
-            confirmLogoutAndClose();
-        }
-    });
+        this.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                confirmLogoutAndClose();
+            }
+        });
 
 
        
@@ -1019,9 +1019,9 @@ public class GUIMain extends javax.swing.JFrame {
     
 
     private void committeeComboBoxListeners(){
-        committeeIDComboBox.addActionListener(e -> {
+        committeeNameComboBox.addActionListener(e -> {
 
-                String selectedCommittee = (String) committeeIDComboBox.getSelectedItem();
+                String selectedCommittee = (String) committeeNameComboBox.getSelectedItem();
                 
                 if (selectedCommittee != null && !selectedCommittee.isEmpty()) {
                   
@@ -1030,16 +1030,16 @@ public class GUIMain extends javax.swing.JFrame {
             
         });
     }
-    private void loadCommitteeDetails(int committeeID){
+    private void loadCommitteeDetails(String committeeName){
         
         committeeNameTextField.setText("");
         descriptionTextArea.setText("");
         dateOfCreationChooser.setDate(null);
-        String getCommitteeDetailsSQL = "SELECT name, description, date_of_creation FROM committee WHERE committee_ID=?";
+        String getCommitteeDetailsSQL = "SELECT name, description, date_of_creation FROM committee WHERE name=?";
         try (Connection conn = DBUtil.getConnection();
             PreparedStatement pstmt3 = conn.prepareStatement(getCommitteeDetailsSQL)){
            
-                pstmt3.setInt(1, committeeID);
+                pstmt3.setString(1, committeeName);
                 ResultSet committeeDetailsRS = pstmt3.executeQuery();
                 if(committeeDetailsRS.next()){
                    
@@ -1061,38 +1061,64 @@ public class GUIMain extends javax.swing.JFrame {
         }
     }
     
-    public final void loadCommittees(String email){
-        String getMemberIDSQL = "SELECT member_ID FROM member WHERE email = ?";
-        String getCommitteeIDsSQL = "SELECT committee_ID FROM belongs_to WHERE member_ID = ?";
-        
-        
+    public final void loadCommittees(String email) {
+        String getCommitteesSQL = "SELECT c.name FROM committee c " +
+                                  "JOIN belongs_to b ON c.committee_ID = b.committee_ID " +
+                                  "JOIN member m ON b.member_ID = m.member_ID " +
+                                  "WHERE m.email = ?";
+
         try (Connection conn = DBUtil.getConnection();
-            PreparedStatement pstmt1 = conn.prepareStatement(getMemberIDSQL);
-            PreparedStatement pstmt2 = conn.prepareStatement(getCommitteeIDsSQL)){
-            
-            pstmt1.setString(1, email);
-            ResultSet memberIDrs = pstmt1.executeQuery();
-            
-            if(memberIDrs.next()){
-                int memberID = memberIDrs.getInt("member_ID");
-                pstmt2.setInt(1, memberID);
-                ResultSet committeeIDrs = pstmt2.executeQuery();
-                
-                committeeIDComboBox.removeAllItems();
-                //committeeIDComboBox.addItem("Select committee ID");
-                while(committeeIDrs.next()){
-                    int committeeID = committeeIDrs.getInt("committee_ID");
-                    committeeIDComboBox.addItem(String.valueOf(committeeID));
-                }
-                
-                
-            }else{
-                    JOptionPane.showMessageDialog(null, "Member or Committee Error!");
+             PreparedStatement pstmt = conn.prepareStatement(getCommitteesSQL)) {
+
+            pstmt.setString(1, email);
+            ResultSet rs = pstmt.executeQuery();
+
+            committeeNameComboBox.removeAllItems(); // Clear previous items
+
+            while (rs.next()) {
+                String committeeName = rs.getString("name");
+                committeeNameComboBox.addItem(committeeName);
             }
-        }catch(SQLException e){
-            JOptionPane.showMessageDialog(null, "Error loading committees: "+e.getMessage());
-        }
+
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Error loading committees: " + e.getMessage());
     }
+}
+
+    
+//    private void loadCommitteeTable(String email){
+//        String query = "SELECT c.committee_ID, c.name , c.description, c.date_of_creation " +
+//                       "FROM commitee c " +
+//                       "JOIN user u ON u.commiteeName = c.name " +
+//                       "WHERE u.email = ?";
+//
+//        try (Connection conn = DBUtil.getConnection();
+//             PreparedStatement pstmt = conn.prepareStatement(query)) {
+//
+//            pstmt.setString(1, email);
+//            ResultSet rs = pstmt.executeQuery();
+//
+//            // Get table model and clear existing data
+//            DefaultTableModel model = (DefaultTableModel) committeeTable.getModel();
+//            model.setRowCount(0); // Clear table before inserting new rows
+//
+//            // Populate table with data from result set
+//            while (rs.next()) {
+//                int committeeID = rs.getInt("committee_ID");
+//                String committeeName = rs.getString("name");
+//                String description = rs.getString("description");
+//                java.sql.Date dateOfCreation = rs.getDate("date_of_creation");
+//
+//                
+//
+//                model.addRow(new Object[]{committeeID, committeeName, description, dateOfCreation});
+//            }
+//
+//        } catch (SQLException e) {
+//            e.printStackTrace();
+//            JOptionPane.showMessageDialog(this, "Error loading committees: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+//        }
+//    }
     //=============================================== END OF EDIT COMMITTEE DETAILS============================================
 
     /**
@@ -1190,7 +1216,7 @@ public class GUIMain extends javax.swing.JFrame {
         updateCommitteeButton = new javax.swing.JButton();
         jLabel28 = new javax.swing.JLabel();
         memberButton = new javax.swing.JButton();
-        committeeIDComboBox = new javax.swing.JComboBox<>();
+        committeeNameComboBox = new javax.swing.JComboBox<>();
         jLabel30 = new javax.swing.JLabel();
         addCommitteeButton = new javax.swing.JButton();
 
@@ -1687,7 +1713,7 @@ public class GUIMain extends javax.swing.JFrame {
         meetingAgendaList.setBorder(javax.swing.BorderFactory.createMatteBorder(1, 1, 1, 1, new java.awt.Color(204, 0, 0)));
         jScrollPane5.setViewportView(meetingAgendaList);
 
-        discussionButton.setText("Discussions");
+        discussionButton.setText("Discussions (Decision)");
         discussionButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 discussionButtonActionPerformed(evt);
@@ -1838,7 +1864,7 @@ public class GUIMain extends javax.swing.JFrame {
         jLabel23.setText("COMMITTEE");
 
         jLabel24.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
-        jLabel24.setText("Committee ID");
+        jLabel24.setText("Select Committee");
 
         committeeNameTextField.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
 
@@ -1877,11 +1903,11 @@ public class GUIMain extends javax.swing.JFrame {
             }
         });
 
-        committeeIDComboBox.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-        committeeIDComboBox.setBorder(javax.swing.BorderFactory.createMatteBorder(1, 1, 1, 1, new java.awt.Color(0, 204, 51)));
-        committeeIDComboBox.addActionListener(new java.awt.event.ActionListener() {
+        committeeNameComboBox.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        committeeNameComboBox.setBorder(javax.swing.BorderFactory.createMatteBorder(1, 1, 1, 1, new java.awt.Color(0, 204, 51)));
+        committeeNameComboBox.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                committeeIDComboBoxActionPerformed(evt);
+                committeeNameComboBoxActionPerformed(evt);
             }
         });
 
@@ -1900,37 +1926,42 @@ public class GUIMain extends javax.swing.JFrame {
         jPanel4.setLayout(jPanel4Layout);
         jPanel4Layout.setHorizontalGroup(
             jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel4Layout.createSequentialGroup()
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
+                .addGap(56, 56, 56)
                 .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(jPanel4Layout.createSequentialGroup()
-                        .addGap(354, 354, 354)
-                        .addComponent(updateCommitteeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 142, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(jPanel4Layout.createSequentialGroup()
-                        .addGap(56, 56, 56)
+                        .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel26)
+                            .addComponent(dateOfCreationChooser, javax.swing.GroupLayout.PREFERRED_SIZE, 170, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addGroup(jPanel4Layout.createSequentialGroup()
+                                .addGap(296, 296, 296)
+                                .addComponent(updateCommitteeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 142, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel4Layout.createSequentialGroup()
                         .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addGroup(jPanel4Layout.createSequentialGroup()
                                 .addComponent(jLabel28)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(memberButton, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 784, Short.MAX_VALUE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                                 .addComponent(jLabel30))
-                            .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                .addComponent(jScrollPane6, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(jLabel27)
-                                .addGroup(jPanel4Layout.createSequentialGroup()
-                                    .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                        .addComponent(jLabel23)
-                                        .addComponent(jLabel24)
-                                        .addComponent(committeeIDComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, 127, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                    .addGap(46, 46, 46)
-                                    .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                        .addComponent(jLabel25)
-                                        .addComponent(committeeNameTextField, javax.swing.GroupLayout.DEFAULT_SIZE, 730, Short.MAX_VALUE)))
-                                .addComponent(jLabel26)
-                                .addComponent(dateOfCreationChooser, javax.swing.GroupLayout.PREFERRED_SIZE, 170, javax.swing.GroupLayout.PREFERRED_SIZE)))))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(addCommitteeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(325, 325, 325))
+                            .addGroup(jPanel4Layout.createSequentialGroup()
+                                .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                                    .addComponent(jLabel27)
+                                    .addGroup(jPanel4Layout.createSequentialGroup()
+                                        .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                            .addComponent(jLabel23)
+                                            .addComponent(jLabel24)
+                                            .addComponent(committeeNameComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, 361, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                            .addComponent(jLabel25)
+                                            .addComponent(committeeNameTextField, javax.swing.GroupLayout.PREFERRED_SIZE, 366, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                                    .addComponent(jScrollPane6, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                                .addGap(0, 268, Short.MAX_VALUE)))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(addCommitteeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 48, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(325, 325, 325))))
         );
         jPanel4Layout.setVerticalGroup(
             jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -1942,9 +1973,9 @@ public class GUIMain extends javax.swing.JFrame {
                     .addComponent(jLabel24)
                     .addComponent(jLabel25))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(committeeNameTextField, javax.swing.GroupLayout.DEFAULT_SIZE, 38, Short.MAX_VALUE)
-                    .addComponent(committeeIDComboBox))
+                .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(committeeNameComboBox, javax.swing.GroupLayout.PREFERRED_SIZE, 38, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(committeeNameTextField, javax.swing.GroupLayout.PREFERRED_SIZE, 38, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(56, 56, 56)
                 .addComponent(jLabel27)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -1961,12 +1992,12 @@ public class GUIMain extends javax.swing.JFrame {
                             .addComponent(memberButton, javax.swing.GroupLayout.PREFERRED_SIZE, 46, javax.swing.GroupLayout.PREFERRED_SIZE)))
                     .addGroup(jPanel4Layout.createSequentialGroup()
                         .addGap(7, 7, 7)
-                        .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addComponent(addCommitteeButton, javax.swing.GroupLayout.DEFAULT_SIZE, 43, Short.MAX_VALUE)
-                            .addComponent(jLabel30, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
-                .addGap(98, 98, 98)
+                        .addGroup(jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(addCommitteeButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addComponent(jLabel30, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addGap(32, 32, 32)))
                 .addComponent(updateCommitteeButton, javax.swing.GroupLayout.PREFERRED_SIZE, 39, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(93, Short.MAX_VALUE))
+                .addGap(201, 201, 201))
         );
 
         jTabbedPane1.addTab("Edit Committee", jPanel4);
@@ -2114,7 +2145,7 @@ public class GUIMain extends javax.swing.JFrame {
     }//GEN-LAST:event_jLabel1MouseClicked
 
     private void memberButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_memberButtonActionPerformed
-        MemberFrontend mf = new MemberFrontend((String)committeeIDComboBox.getSelectedItem());
+        MemberFrontend mf = new MemberFrontend((String)committeeNameComboBox.getSelectedItem());
         mf.setVisible(true);
     }//GEN-LAST:event_memberButtonActionPerformed
 
@@ -2124,7 +2155,7 @@ public class GUIMain extends javax.swing.JFrame {
 
     private void jButton8ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton8ActionPerformed
         AttendanceFrontend attendance = new AttendanceFrontend(Integer.parseInt((String) meetingIDComboBox.getSelectedItem()),
-        Integer.parseInt((String) committeeIDComboBox.getSelectedItem()));
+        committeeNameComboBox.getSelectedItem().toString());
         attendance.setVisible(true);
     }//GEN-LAST:event_jButton8ActionPerformed
 
@@ -2142,21 +2173,21 @@ public class GUIMain extends javax.swing.JFrame {
 
     }//GEN-LAST:event_printMinuteButtonActionPerformed
 
-    private void committeeIDComboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_committeeIDComboBoxActionPerformed
-        String selectedCommittee = (String) committeeIDComboBox.getSelectedItem(); 
+    private void committeeNameComboBoxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_committeeNameComboBoxActionPerformed
+        String selectedCommittee = (String) committeeNameComboBox.getSelectedItem(); 
       
 
         if (selectedCommittee != null && !selectedCommittee.isEmpty()) {
         try {
-            int committeeID = Integer.parseInt(selectedCommittee); // Convert to int
-            loadCommitteeDetails(committeeID); // Pass ID to method
+      
+            loadCommitteeDetails(selectedCommittee); 
             showCommitteeName();
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(null, "Invalid selection. Please select a valid Committee ID.");
         }
     }
         
-    }//GEN-LAST:event_committeeIDComboBoxActionPerformed
+    }//GEN-LAST:event_committeeNameComboBoxActionPerformed
 
     private void addCommitteeButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addCommitteeButtonActionPerformed
         try {
@@ -2170,7 +2201,7 @@ public class GUIMain extends javax.swing.JFrame {
     }//GEN-LAST:event_addCommitteeButtonActionPerformed
 
     private void updateCommitteeButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_updateCommitteeButtonActionPerformed
-        String selectedCommittee = (String) committeeIDComboBox.getSelectedItem(); 
+        String selectedCommittee = (String) committeeNameComboBox.getSelectedItem(); 
       
 
         if (selectedCommittee != null && !selectedCommittee.isEmpty()) {
@@ -2636,7 +2667,7 @@ public class GUIMain extends javax.swing.JFrame {
     private javax.swing.JButton agendaSearchButton;
     private javax.swing.JTable agendasTable;
     private javax.swing.JTextField approvedByTextField;
-    private javax.swing.JComboBox<String> committeeIDComboBox;
+    private javax.swing.JComboBox<String> committeeNameComboBox;
     private javax.swing.JLabel committeeNameLabel;
     private javax.swing.JTextField committeeNameTextField;
     private javax.swing.JTextArea contentTextArea;
